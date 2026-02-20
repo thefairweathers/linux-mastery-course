@@ -1,0 +1,12 @@
+*.swp
+*.swo
+*~
+.DS_Store
+.vagrant/
+*.log
+*.tmp
+.env
+node_modules/
+__pycache__/
+*.pyc
+.venv/
