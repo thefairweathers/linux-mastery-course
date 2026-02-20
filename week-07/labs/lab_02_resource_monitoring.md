@@ -12,7 +12,7 @@
 
 ## Part 1: The Quick Health Check
 
-A systematic approach matters. When you log into a server — whether for routine maintenance or because something is on fire — this sequence takes 30 seconds and tells you the state of the machine.
+When you log into a server — routine maintenance or incident response — this sequence takes 30 seconds and tells you the state of the machine.
 
 ### Step 1: Check Uptime and Load
 
@@ -28,9 +28,7 @@ uptime
 
 Record the three load average numbers. Your VM has 2 CPUs, so load averages below 2.0 mean the CPUs have capacity.
 
-**Before you continue, predict:** If the 1-minute load average is 0.08 but the 15-minute average is 3.5, what does that tell you about recent system history?
-
-(Answer: The system was heavily loaded recently but the spike has subsided. The 15-minute average is still catching up.)
+**Before you continue, predict:** If the 1-minute load average is 0.08 but the 15-minute average is 3.5, what does that tell you? (Answer: The system was heavily loaded recently but the spike has subsided.)
 
 ### Step 2: Check Memory
 
@@ -38,34 +36,17 @@ Record the three load average numbers. Your VM has 2 CPUs, so load averages belo
 free -h
 ```
 
-**Expected output:**
-
-```text
-               total        used        free      shared  buff/cache   available
-Mem:           3.8Gi       412Mi       3.1Gi        12Mi       502Mi       3.4Gi
-Swap:          2.0Gi          0B       2.0Gi
-```
-
 Record these values:
-- **available** memory: _______ (this is the number that matters)
+- **available** memory: _______ (this is the number that actually matters)
 - **swap used**: _______ (should be 0B on a healthy, lightly-loaded system)
 
-Now get the same data from /proc:
+Verify the source data:
 
 ```bash
 grep -E "MemTotal|MemAvailable|SwapTotal|SwapFree" /proc/meminfo
 ```
 
-**Expected output:**
-
-```text
-MemTotal:        3932160 kB
-MemAvailable:    3538944 kB
-SwapTotal:       2097152 kB
-SwapFree:        2097152 kB
-```
-
-This is where `free` gets its data. The values will match (after unit conversion).
+This is where `free` gets its data. The values will match after unit conversion.
 
 ### Step 3: Check Disk Space
 
@@ -73,18 +54,7 @@ This is where `free` gets its data. The values will match (after unit conversion
 df -h
 ```
 
-**Expected output:**
-
-```text
-Filesystem      Size  Used Avail Use% Mounted on
-/dev/sda2        39G  4.2G   33G  12% /
-tmpfs           1.9G     0  1.9G   0% /dev/shm
-/dev/sda1       512M  6.1M  506M   2% /boot/efi
-```
-
-Check that no filesystem is above 80% usage. On your fresh VM, everything should be well below that.
-
-Record the Use% for the root filesystem (`/`): _______
+Check that no filesystem is above 80% usage. Record the Use% for root (`/`): _______
 
 ### Step 4: Quick CPU and Process Check
 
@@ -92,21 +62,7 @@ Record the Use% for the root filesystem (`/`): _______
 top -bn1 | head -5
 ```
 
-The `-b` flag runs top in batch mode (non-interactive), and `-n1` runs it for exactly one iteration. This is how you capture top's output in a script or pipeline.
-
-**Expected output (first 5 lines):**
-
-```text
-top - 10:16:12 up 2:31,  1 user,  load average: 0.05, 0.04, 0.01
-Tasks: 112 total,   1 running, 111 sleeping,   0 stopped,   0 zombie
-%Cpu(s):  0.3 us,  0.2 sy,  0.0 ni, 99.5 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
-MiB Mem :   3936.0 total,   3200.5 free,    412.3 used,    502.8 buff/cache
-MiB Swap:   2048.0 total,   2048.0 free,      0.0 used.   3524.0 avail Mem
-```
-
-Check the `zombie` count on the Tasks line. It should be 0.
-
-Check the `wa` value on the Cpu line. It should be near 0.0 on an idle system.
+The `-b` flag runs top in batch mode (non-interactive), `-n1` for one iteration. Check the `zombie` count on the Tasks line (should be 0) and the `wa` value on the Cpu line (should be near 0.0).
 
 ### Step 5: Check for I/O Problems
 
@@ -114,30 +70,18 @@ Check the `wa` value on the Cpu line. It should be near 0.0 on an idle system.
 vmstat 1 3
 ```
 
-**Expected output:**
-
-```text
-procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
- r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
- 0  0      0 3276800  51200 463872    0    0    12     8   50  100  0  0 99  0  0
- 0  0      0 3276544  51200 463872    0    0     0     4   42   88  0  0 100 0  0
- 0  0      0 3276544  51200 463872    0    0     0     0   38   82  0  0 100 0  0
-```
-
-Remember: the first line is an average since boot. Look at lines 2 and 3 for current behavior.
-
-Check these columns:
+The first line is an average since boot — ignore it. Look at lines 2 and 3:
 - `b` (blocked processes): should be 0
 - `si`/`so` (swap in/out): should be 0
 - `wa` (I/O wait): should be 0 or very low
 
-You've just completed a full health check in under a minute. In production, this is your starting point every time.
+You've just completed a full health check in under a minute.
 
 ---
 
-## Part 2: Installing and Using htop
+## Part 2: Using htop and iostat
 
-### Step 6: Install htop
+### Step 6: Install and Explore htop
 
 On Ubuntu:
 
@@ -151,94 +95,48 @@ On Rocky:
 sudo dnf install -y htop
 ```
 
-### Step 7: Explore htop
+Run htop and practice these operations:
 
 ```bash
 htop
 ```
 
-Once inside htop, practice these operations:
+1. Observe the CPU bars at the top (green = user, red = kernel, blue = low-priority)
+2. Press **F5** to toggle tree view (like live `pstree`)
+3. Press **F4** to filter — type `sshd`, then clear the filter
+4. Press **F6** to sort by `PERCENT_MEM`
+5. Press **q** to quit
 
-1. **Observe the CPU bars** at the top. Each bar represents one CPU core. Green is user-space, red is kernel-space, blue is low-priority.
+### Step 7: Check I/O Statistics
 
-2. Press **F5** to toggle tree view. This shows the same parent-child hierarchy as `pstree`, but live and interactive.
-
-3. Press **F4** to filter. Type `sshd` and press Enter. Only SSH-related processes appear. Press **F4** again and clear the filter.
-
-4. Press **F6** to choose a sort column. Select `PERCENT_MEM` to sort by memory usage. Press Enter.
-
-5. Use arrow keys to select a process. Press **F9** to open the signal menu. You can see all available signals listed. Press Escape to cancel (don't kill anything yet).
-
-6. Press **F2** to open the setup screen. Explore the options. Press Escape when done.
-
-7. Press **q** to quit htop.
-
----
-
-## Part 3: Monitoring I/O with iostat
-
-### Step 8: Install sysstat (if needed)
-
-`iostat` is part of the `sysstat` package.
-
-On Ubuntu:
+Install sysstat if needed:
 
 ```bash
+# Ubuntu
 sudo apt install -y sysstat
-```
 
-On Rocky:
-
-```bash
+# Rocky
 sudo dnf install -y sysstat
 ```
-
-### Step 9: Check I/O Statistics
 
 ```bash
 iostat -xz 2 3
 ```
 
-**Expected output:**
-
-```text
-avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-           0.10    0.00    0.08    0.01    0.00   99.81
-
-Device            r/s     w/s     rkB/s     wkB/s   await  %util
-sda              0.30    0.80     8.00     32.00    1.20   0.15
-```
-
-Key values to record:
-- `%iowait`: _______ (should be near 0 on an idle system)
-- `await` (average I/O wait in ms): _______ (under 10ms is excellent for an SSD)
-- `%util` (device utilization): _______ (under 10% on an idle system)
-
-The flags: `-x` shows extended statistics, `-z` hides devices with zero activity, `2 3` means sample every 2 seconds for 3 iterations.
+Key values to check:
+- `await` (average I/O wait in ms): under 10ms is excellent for an SSD
+- `%util` (device utilization): under 10% on an idle system
 
 ---
 
-## Part 4: Finding Large Directories
+## Part 3: Finding Large Directories
 
-### Step 10: Find Where Disk Space Is Used
+### Step 8: Trace Disk Usage Top-Down
 
-Start from the top:
+Start from the root:
 
 ```bash
 sudo du -sh /* 2>/dev/null | sort -rh | head -10
-```
-
-**Expected output (approximately):**
-
-```text
-5.1G    /usr
-1.2G    /var
-380M    /lib
-150M    /boot
-42M     /etc
-22M     /run
-12M     /home
-...
 ```
 
 Drill into the largest directory:
@@ -253,82 +151,51 @@ Then into /var:
 sudo du -sh /var/* 2>/dev/null | sort -rh | head -5
 ```
 
-**Before you continue, predict:** On a fresh server, which subdirectory of /var will be the largest?
-
-(Typically `/var/cache` or `/var/lib` — the package manager cache and package databases.)
-
-### Step 11: Check Your Home Directory
-
-```bash
-du -sh ~/* 2>/dev/null | sort -rh
-```
-
-On a fresh system this will be minimal. As the course progresses and you create files, this is how you'd track down space usage in your home directory.
+**Before you continue, predict:** On a fresh server, which subdirectory of /var will be the largest? (Typically `/var/cache` or `/var/lib` — the package manager cache and databases.)
 
 ---
 
-## Part 5: Finding Port Conflicts with lsof
+## Part 4: Finding Port Conflicts with lsof
 
-### Step 12: List All Listening Ports
+### Step 9: List Listening Ports
 
 ```bash
 sudo lsof -i -P -n | grep LISTEN
 ```
 
-**Expected output:**
+**Expected output:** At least sshd on port 22.
 
-```text
-sshd     1100  root    3u  IPv4  25432      0t0  TCP *:22 (LISTEN)
-sshd     1100  root    4u  IPv6  25434      0t0  TCP *:22 (LISTEN)
-```
+### Step 10: Simulate a Port Conflict
 
-You should see sshd on port 22. There may be other services depending on what you've installed in previous weeks.
-
-### Step 13: Simulate a Port Conflict
-
-Start a simple listener on port 8080:
+Start a listener on port 8080:
 
 ```bash
-# Start a process listening on port 8080
 python3 -m http.server 8080 &
 ```
 
-(If python3 is not installed, use: `nc -l 8080 &` instead.)
+(If python3 is not installed, use `nc -l 8080 &` instead.)
 
-Verify it's listening:
+Find it with lsof:
 
 ```bash
 sudo lsof -i :8080
 ```
 
-**Expected output:**
-
-```text
-COMMAND    PID    USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
-python3   1600 student    3u  IPv4  28500      0t0  TCP *:8080 (LISTEN)
-```
-
-Now try to start another listener on the same port:
+Try to start another listener on the same port:
 
 ```bash
 python3 -m http.server 8080
 ```
 
-**Expected output:**
+**Expected output:** `OSError: [Errno 98] Address already in use`
 
-```text
-OSError: [Errno 98] Address already in use
-```
+This is the "port already in use" error you'll encounter in real life. `lsof -i :8080` immediately tells you the culprit.
 
-This is the "port already in use" error you'll encounter in real life. Now you know how to find the culprit — `lsof -i :8080` immediately tells you the PID and command.
-
-Clean up:
+Clean up using lsof's `-t` flag (outputs only PIDs):
 
 ```bash
 kill "$(lsof -t -i :8080)"
 ```
-
-The `-t` flag makes lsof output only PIDs, which feeds directly into `kill`.
 
 Verify the port is free:
 
@@ -336,108 +203,73 @@ Verify the port is free:
 sudo lsof -i :8080
 ```
 
-**Expected output:** No output (the port is free).
+**Expected output:** No output (port is free).
 
 ---
 
-## Part 6: Creating and Killing a Runaway Process
+## Part 5: Killing a Runaway Process
 
-### Step 14: Create a Runaway Process
-
-This simulates a process that's consuming CPU and producing output endlessly:
+### Step 11: Create a Runaway Process
 
 ```bash
 yes > /dev/null &
 ```
 
-`yes` prints "y" endlessly. Redirecting to `/dev/null` discards the output, but the process still consumes CPU.
+`yes` prints "y" endlessly. Even with output discarded, it consumes a full CPU core.
 
-Record the PID: _______
-
-### Step 15: Observe the Impact
-
-Check the CPU usage immediately:
-
-```bash
-top -bn1 | head -12
-```
-
-You should see the `yes` process consuming close to 100% of one CPU. The load average will start climbing.
-
-Check with `ps`:
+### Step 12: Observe the Impact
 
 ```bash
 ps aux --sort=-%cpu | head -5
 ```
 
-**Expected output:** The `yes` process at the top with high %CPU.
+**Expected output:** `yes` at the top with near 100% CPU.
 
-### Step 16: Use renice Before Killing
+### Step 13: Renice Before Killing
 
-Instead of killing it immediately, practice lowering its priority first:
+Lower its priority first:
 
 ```bash
-# Replace PID with the actual PID of the yes process
 renice 19 -p "$(pgrep yes)"
 ```
 
-**Expected output:**
+**Expected output:** `old priority 0, new priority 19`
 
-```text
-<PID> (process ID) old priority 0, new priority 19
-```
+The process still uses CPU, but the scheduler gives all other processes preference.
 
-Run `top -bn1 | head -12` again. The process still uses CPU, but with the lowest priority. If other processes needed CPU time, the scheduler would give them preference.
-
-### Step 17: Kill the Runaway
-
-Now kill it properly — SIGTERM first:
+### Step 14: Kill It
 
 ```bash
 kill "$(pgrep yes)"
 ```
 
-Verify it's gone:
+Verify:
 
 ```bash
 pgrep yes
 ```
 
-**Expected output:** No output (the process is gone).
+**Expected output:** No output (process is gone).
 
-If it were still running (which it shouldn't be for `yes`, but some processes ignore SIGTERM):
-
-```bash
-kill -9 "$(pgrep yes)"
-```
-
-### Step 18: Check Recovery
-
-```bash
-uptime
-```
-
-The 1-minute load average may still be elevated. Wait a minute and check again — it should drop back toward 0. The 5-minute and 15-minute averages smooth out slower, showing the history of the spike.
+Check recovery with `uptime` — the 1-minute load average may still be elevated. Wait a minute and check again.
 
 ---
 
-## Part 7: Building a Monitoring Script (Optional Challenge)
+## Part 6: Combined Health Check (Optional Challenge)
 
-### Step 19: Combine Everything
+### Step 15: One-Liner Health Check
 
-Create a one-liner that performs a complete health check:
+Combine everything into a single command:
 
 ```bash
-echo "=== UPTIME ===" && uptime && echo "=== MEMORY ===" && free -h && echo "=== DISK ===" && df -h / && echo "=== LOAD ===" && cat /proc/loadavg && echo "=== TOP 5 BY CPU ===" && ps aux --sort=-%cpu | head -6 && echo "=== TOP 5 BY MEM ===" && ps aux --sort=-%mem | head -6
+echo "=== UPTIME ===" && uptime && echo "=== MEMORY ===" && free -h && echo "=== DISK ===" && df -h / && echo "=== TOP 5 CPU ===" && ps aux --sort=-%cpu | head -6 && echo "=== TOP 5 MEM ===" && ps aux --sort=-%mem | head -6
 ```
 
-This produces a complete snapshot of system health. In later weeks when we cover shell scripting, you could turn this into a proper monitoring script with thresholds and alerts.
+In later weeks when we cover shell scripting, you could turn this into a proper monitoring script with thresholds and alerts.
 
 ---
 
 ## Verify Your Work
-
-Run these commands and confirm the expected results:
 
 ```bash
 # Can you check memory?
@@ -448,24 +280,24 @@ Expected: `Available:` followed by a memory value (e.g., `3.4Gi`)
 
 ```bash
 # Can you check disk space?
-df -h / | tail -1 | awk '{print "Root disk usage:", $5}'
+df -h / | tail -1 | awk '{print "Root usage:", $5}'
 ```
 
-Expected: `Root disk usage:` followed by a percentage (e.g., `12%`)
+Expected: `Root usage:` followed by a percentage (e.g., `12%`)
 
 ```bash
 # Can you find listeners?
 ss -tlnp | grep -c "LISTEN"
 ```
 
-Expected: A number of 1 or more (at least sshd is listening)
+Expected: 1 or more
 
 ```bash
 # Can you use vmstat?
 vmstat 1 2 | tail -1 | awk '{print "CPU idle:", $15"%"}'
 ```
 
-Expected: `CPU idle:` followed by a high percentage (95%+ on an idle system)
+Expected: `CPU idle:` followed by a high percentage (95%+)
 
 ```bash
 # Is htop installed?
@@ -474,11 +306,4 @@ which htop && echo "htop is ready"
 
 Expected: A path followed by `htop is ready`
 
-```bash
-# Can you find large directories?
-sudo du -sh /usr 2>/dev/null
-```
-
-Expected: A size value for /usr (typically 3-6 GB)
-
-If all checks pass, you have a solid toolkit for monitoring Linux systems. These are the same tools and workflows that production engineers use daily. As you move into later weeks covering services (Week 11), web servers (Week 12), and containers (Week 15+), you'll use these monitoring skills to verify that everything is running correctly.
+If all checks pass, you have a solid toolkit for monitoring Linux systems. These same tools and workflows are what production engineers use daily. As you move into later weeks covering services, web servers, and containers, you'll rely on these monitoring skills constantly.

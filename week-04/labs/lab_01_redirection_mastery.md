@@ -130,23 +130,7 @@ echo "--- STDERR ---"
 cat checks_stderr.txt
 ```
 
-Expected stdout:
-
-```text
-=== Starting checks ===
-/etc/hostname
-PRETTY_NAME="Ubuntu 22.04.3 LTS"
-=== Checks complete ===
-```
-
-Expected stderr:
-
-```text
-ls: cannot access '/nonexistent/path': No such file or directory
-cat: /no/such/file: No such file or directory
-```
-
-The `echo` commands and successful output went to stdout. The error messages went to stderr.
+The stdout file should contain the `echo` lines and successful command output. The stderr file should contain the "No such file" errors. The two streams were cleanly separated.
 
 ---
 

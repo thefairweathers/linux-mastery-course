@@ -85,32 +85,18 @@ sudo dnf install -y hping3
 ### Step 6: Examine the EPEL GPG Key
 
 ```bash
-rpm -qi gpg-pubkey-*epel*
-```
-
-If that doesn't match, list all imported keys and find the EPEL one:
-
-```bash
 rpm -qa gpg-pubkey*
 ```
 
-You can view the details of any imported GPG key:
-
-```bash
-rpm -qi gpg-pubkey-$(rpm -qa gpg-pubkey | head -1 | sed 's/gpg-pubkey-//')
-```
-
-The key was imported automatically when you installed `epel-release`. This is the mechanism that establishes trust — your system now trusts packages signed by the EPEL maintainers.
+The EPEL key was imported automatically when you installed `epel-release`. This is the mechanism that establishes trust — your system now trusts packages signed by the EPEL maintainers.
 
 ---
 
 ## Part 2: Add Docker's Official Repository (Ubuntu)
 
-Docker provides their own repository because the version in Ubuntu's default repos is often outdated. This process is representative of how most third-party software vendors distribute packages for Debian-based systems.
+Docker provides their own repository because the version in Ubuntu's default repos is often outdated. This process is representative of how most vendors distribute packages for Debian-based systems.
 
 ### Step 1: Remove Old Docker Packages (if any)
-
-Clean up any previously installed Docker-related packages:
 
 ```bash
 sudo apt remove -y docker docker-engine docker.io containerd runc 2>/dev/null
@@ -123,11 +109,6 @@ sudo apt update
 sudo apt install -y ca-certificates curl gnupg
 ```
 
-These packages provide:
-- `ca-certificates` — root certificates for HTTPS verification
-- `curl` — for downloading the GPG key
-- `gnupg` — for handling GPG keys
-
 ### Step 3: Add Docker's GPG Key
 
 ```bash
@@ -139,10 +120,7 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 ```
 
-Let's break this down:
-1. Create the `/etc/apt/keyrings` directory (the modern location for repository keys)
-2. Download Docker's GPG key and convert it from ASCII-armored format to binary with `gpg --dearmor`
-3. Make it readable by all users (APT runs as `_apt` user during updates)
+This creates the keyrings directory, downloads Docker's GPG key (converting it to binary format with `gpg --dearmor`), and makes it readable by all users.
 
 ### Step 4: Add the Docker Repository
 
@@ -154,11 +132,7 @@ echo \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 ```
 
-This creates a file at `/etc/apt/sources.list.d/docker.list` with the repository definition. The key parts:
-
-- `arch=$(dpkg --print-architecture)` — ensures you get packages for your CPU architecture
-- `signed-by=/etc/apt/keyrings/docker.gpg` — tells APT which GPG key to use for verification
-- `$(. /etc/os-release && echo "$VERSION_CODENAME")` — inserts your Ubuntu version codename (e.g., `noble`)
+This creates a `.list` file with the repository definition. The `signed-by=` directive tells APT which GPG key to use, and the subshells automatically insert your architecture and Ubuntu version codename.
 
 ### Step 5: Verify the Repository File
 
@@ -272,17 +246,7 @@ Key fields:
 sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
 
-The first time you install from a new repository, DNF will prompt you to import the GPG key:
-
-```text
-Importing GPG key 0x621E9F35:
- Userid     : "Docker Release (CE rpm) <docker@docker.com>"
- Fingerprint: 060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35
- From       : https://download.docker.com/linux/rhel/gpg
-Is this ok [y/N]:
-```
-
-Since we used the `-y` flag, this is accepted automatically. In production, you'd verify the fingerprint matches Docker's published key before accepting.
+The first time you install from a new repo, DNF prompts to import the GPG key. Since we used `-y`, it's accepted automatically. In production, verify the fingerprint matches Docker's published key before accepting.
 
 ### Step 6: Verify Docker Installation
 
@@ -301,12 +265,6 @@ The `Repository` field should show `docker-ce-stable`.
 ### Step 7: View Imported GPG Keys
 
 ```bash
-rpm -qa gpg-pubkey*
-```
-
-Each entry is an imported GPG key. To see the details of Docker's key specifically:
-
-```bash
 rpm -qa gpg-pubkey* --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n'
 ```
 
@@ -316,55 +274,39 @@ This shows the key ID and summary for each imported key, making it easy to ident
 
 ## Part 4: Verify GPG Trust
 
-Let's confirm that the trust chain is working on both systems.
+Confirm the trust chain is working on both systems.
 
-### Ubuntu: Verify Package Signatures
-
-```bash
-apt-cache policy docker-ce | head -5
-```
-
-The `signed-by` directive in the repository definition ensures APT only trusts packages signed by Docker's key. If someone compromised the repository and signed packages with a different key, APT would refuse to install them.
-
-You can verify the keyring file exists and is valid:
+**Ubuntu:**
 
 ```bash
 gpg --show-keys /etc/apt/keyrings/docker.gpg
 ```
 
-### Rocky: Verify Package Signatures
+The `signed-by` directive in the repo definition ensures APT only trusts packages signed by this specific key.
 
-Check that a specific installed package has a valid signature:
+**Rocky:**
 
-```bash
-rpm -K $(rpm -q docker-ce --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}.rpm') 2>/dev/null || \
-  echo "Package signature is verified during installation by DNF"
-```
-
-You can also verify all installed packages haven't been modified since installation:
+Verify that installed files haven't been modified since installation:
 
 ```bash
 rpm -Va docker-ce
 ```
 
-If this produces no output, all files are exactly as they were when installed. Any modifications would be listed with a code indicating what changed (size, checksum, permissions, etc.).
+No output means all files are exactly as they were when installed.
 
 ---
 
 ## Part 5: Compare the Process
-
-Here is a side-by-side summary of what you just did:
 
 | Step | Ubuntu | Rocky |
 |------|--------|-------|
 | Add GPG key | Download, dearmor, save to `/etc/apt/keyrings/` | Automatic from `.repo` file `gpgkey=` URL |
 | Add repository | Write `.list` file to `/etc/apt/sources.list.d/` | `dnf config-manager --add-repo <url>` |
 | Refresh index | `sudo apt update` | _(automatic on next install)_ |
-| Install | `sudo apt install -y docker-ce ...` | `sudo dnf install -y docker-ce ...` |
 | Key location | `/etc/apt/keyrings/docker.gpg` | Imported into RPM database |
-| Repo config location | `/etc/apt/sources.list.d/docker.list` | `/etc/yum.repos.d/docker-ce.repo` |
+| Repo config | `/etc/apt/sources.list.d/docker.list` | `/etc/yum.repos.d/docker-ce.repo` |
 
-The Rocky process is simpler for third-party repos because the `.repo` file format bundles everything together. Ubuntu's process requires more manual steps but gives you finer-grained control over exactly which key is used for which repository.
+Rocky's process is simpler because the `.repo` file bundles everything. Ubuntu requires more manual steps but gives finer-grained control over key-to-repo binding.
 
 ---
 

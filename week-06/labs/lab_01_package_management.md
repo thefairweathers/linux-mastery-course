@@ -12,7 +12,7 @@
 
 ## Overview
 
-In this lab, you'll perform the same package management tasks on both distributions, comparing the commands and output at each step. Work through each section on **both VMs** — run the Ubuntu commands on your Ubuntu VM and the Rocky commands on your Rocky VM.
+Work through each section on **both VMs** — run the Ubuntu commands on your Ubuntu VM and the Rocky commands on your Rocky VM.
 
 ---
 
@@ -32,13 +32,11 @@ sudo apt update
 sudo dnf makecache
 ```
 
-On Rocky, `dnf makecache` explicitly refreshes the metadata cache. DNF does this automatically when the cache is stale, but it's good practice to do it explicitly before a lab session.
+On Rocky, `dnf makecache` explicitly refreshes the metadata cache. DNF does this automatically when the cache is stale, but it's good practice before a lab session.
 
 ---
 
 ## Step 2: Search for Packages
-
-Search for `htop`, an interactive process viewer.
 
 **Ubuntu:**
 
@@ -52,7 +50,7 @@ apt search htop
 dnf search htop
 ```
 
-Now search for `tree`, a tool that displays directory structures:
+Now search for `tree`:
 
 **Ubuntu:**
 
@@ -66,7 +64,7 @@ apt search ^tree$
 dnf search tree
 ```
 
-On Ubuntu, `apt search` uses regex patterns, so `^tree$` matches only the exact package name. Without the anchors, you'd get every package that mentions "tree" anywhere in its name or description.
+On Ubuntu, `apt search` uses regex, so `^tree$` matches only the exact name. Without anchors, you'd match every package mentioning "tree" anywhere.
 
 ---
 
@@ -111,9 +109,7 @@ sudo apt install -y nginx htop tree curl jq
 sudo dnf install -y nginx htop tree curl jq
 ```
 
-The `-y` flag answers "yes" to confirmation prompts automatically. In production, you'd want to review the transaction summary first, but for lab work it speeds things up.
-
-Review what was installed. Notice that both package managers pulled in dependencies beyond just the five packages you requested.
+The `-y` flag answers "yes" to confirmation prompts automatically. In production, review the transaction summary first, but for lab work it speeds things up. Notice that both package managers pulled in dependencies beyond just the five packages you requested.
 
 ---
 
@@ -190,62 +186,21 @@ This works for any file on the system — incredibly useful for troubleshooting.
 
 ---
 
-## Step 7: List Files Installed by a Package
+## Step 7: List Files and Inspect Package Info
 
 See every file that a package put on your system.
 
-**Ubuntu:**
+**Ubuntu:** `dpkg -L tree`
+**Rocky:** `rpm -ql tree`
 
-```bash
-dpkg -L tree
-```
+Compare the output. The binary (`/usr/bin/tree`) is in the same location on both, but man pages and documentation paths differ.
 
-**Rocky:**
+Now get detailed information about an installed package.
 
-```bash
-rpm -ql tree
-```
+**Ubuntu:** `apt show jq`
+**Rocky:** `dnf info jq`
 
-Compare the output. You'll notice differences in where the man pages and documentation are placed, but the binary itself (`/usr/bin/tree`) is in the same location on both distributions.
-
-Now list the files for `nginx` (the main package):
-
-**Ubuntu:**
-
-```bash
-dpkg -L nginx
-```
-
-**Rocky:**
-
-```bash
-rpm -ql nginx
-```
-
-Notice that on Ubuntu, the `nginx` package itself is a metapackage — it contains very few files and depends on `nginx-core` for the actual binary. On Rocky, the structure is similar: `nginx` depends on `nginx-core`.
-
----
-
-## Step 8: Inspect Package Information for Installed Packages
-
-Get detailed information about an installed package.
-
-**Ubuntu:**
-
-```bash
-apt show jq
-```
-
-**Rocky:**
-
-```bash
-dnf info jq
-```
-
-Compare:
-- Where does each distro say the package came from (which repository)?
-- What are the listed dependencies?
-- How do the version numbers differ?
+Compare: Which repository did the package come from? What dependencies are listed? How do the version numbers differ?
 
 ---
 
@@ -255,16 +210,9 @@ Sometimes you know the command you want but not the package name. Both distros h
 
 **Ubuntu:**
 
-The `apt-file` tool needs to be installed first:
-
 ```bash
 sudo apt install -y apt-file
 sudo apt-file update
-```
-
-Now search for which package provides a file:
-
-```bash
 apt-file search /usr/bin/dig
 ```
 
@@ -273,8 +221,6 @@ bind9-dnsutils: /usr/bin/dig
 ```
 
 **Rocky:**
-
-DNF has this built in with the `provides` subcommand:
 
 ```bash
 dnf provides /usr/bin/dig
@@ -287,7 +233,7 @@ Matched from:
 Filename    : /usr/bin/dig
 ```
 
-Notice the package names differ: `bind9-dnsutils` on Ubuntu, `bind-utils` on Rocky. This is common — the same software is often packaged under different names.
+Notice the package names differ: `bind9-dnsutils` on Ubuntu vs `bind-utils` on Rocky. This is common.
 
 ---
 
@@ -299,21 +245,6 @@ Remove `htop` from both systems.
 
 ```bash
 sudo apt remove -y htop
-```
-
-Verify it's gone:
-
-```bash
-which htop
-```
-
-```text
-(no output — the command is gone)
-```
-
-Check if configuration files remain:
-
-```bash
 dpkg -l htop
 ```
 
@@ -321,7 +252,7 @@ dpkg -l htop
 rc  htop  3.3.0-4build1  amd64  interactive processes viewer
 ```
 
-The `rc` status means **r**emoved but **c**onfig files remain. Now purge those config files:
+The `rc` status means **r**emoved but **c**onfig files remain. Purge them:
 
 ```bash
 sudo apt purge -y htop
@@ -332,19 +263,6 @@ dpkg -l htop 2>/dev/null || echo "Package fully removed"
 
 ```bash
 sudo dnf remove -y htop
-```
-
-Verify:
-
-```bash
-which htop
-```
-
-```text
-/usr/bin/which: no htop in (/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin)
-```
-
-```bash
 rpm -q htop
 ```
 
@@ -354,23 +272,18 @@ package htop is not installed
 
 ---
 
-## Step 11: Examine Dependency Resolution
+## Step 11: Dependency Resolution and Cleanup
 
-Let's see what happens when you remove a package that others depend on.
+Remove nginx and observe the dependency chain.
 
 **Ubuntu:**
 
 ```bash
 sudo apt remove -y nginx
-```
-
-Watch the output. APT will tell you which other packages will also be removed (packages that depended on nginx). Then run:
-
-```bash
 sudo apt autoremove -y
 ```
 
-This cleans up any orphaned dependencies that were pulled in with nginx but are no longer needed by anything.
+APT tells you which dependent packages will also be removed. The `autoremove` cleans up orphaned dependencies.
 
 **Rocky:**
 
@@ -378,45 +291,15 @@ This cleans up any orphaned dependencies that were pulled in with nginx but are 
 sudo dnf remove -y nginx
 ```
 
-DNF also shows you the dependency chain that will be removed. Unlike APT, DNF removes orphaned dependencies as part of the remove operation by default.
+DNF removes orphaned dependencies as part of the remove operation by default.
 
----
-
-## Step 12: Reinstall and Clean Up
-
-Reinstall nginx to leave both systems in a known state:
+Now reinstall nginx, then clean the package caches:
 
 **Ubuntu:**
 
 ```bash
 sudo apt install -y nginx
-```
-
-**Rocky:**
-
-```bash
-sudo dnf install -y nginx
-```
-
-Check the package cache size on both systems.
-
-**Ubuntu:**
-
-```bash
 du -sh /var/cache/apt/archives/
-```
-
-**Rocky:**
-
-```bash
-du -sh /var/cache/dnf/
-```
-
-Clean the caches:
-
-**Ubuntu:**
-
-```bash
 sudo apt clean
 du -sh /var/cache/apt/archives/
 ```
@@ -424,6 +307,8 @@ du -sh /var/cache/apt/archives/
 **Rocky:**
 
 ```bash
+sudo dnf install -y nginx
+du -sh /var/cache/dnf/
 sudo dnf clean all
 du -sh /var/cache/dnf/
 ```
@@ -461,4 +346,4 @@ After completing this lab, you have hands-on experience with:
 - ✓ Listing files that belong to a package
 - ✓ Understanding the difference between `remove` and `purge` on Ubuntu
 - ✓ Cleaning the package cache to reclaim disk space
-- ✓ Recognizing that the same software often has different package names across distributions
+- ✓ Recognizing that the same software often has different package names across distros

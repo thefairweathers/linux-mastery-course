@@ -124,14 +124,7 @@ exit
 
 Note that the container runs Debian, has its own hostname, and shows only nginx processes. After `exit`, the container continues running — `exec` does not affect the main process.
 
-### Step 7: Inspect the Container
-
-```bash
-docker inspect --format '{{.NetworkSettings.IPAddress}}' web
-docker inspect --format '{{.State.StartedAt}}' web
-```
-
-### Step 8: Stop, Start, and Restart
+### Step 7: Stop, Start, and Restart
 
 ```bash
 # Stop the container
@@ -186,34 +179,12 @@ The `--rm` flag means the container is automatically removed when you exit. Perf
 ```bash
 # Inside the container
 whoami
-id
-cat /etc/os-release
 ps aux
 ls /
-```
-
-```text
-# whoami output:
-root
-
-# ps aux output:
-PID   USER     TIME  COMMAND
-    1 root      0:00 sh
-    7 root      0:00 ps aux
-```
-
-There are only two processes. PID 1 is your shell. The container is as minimal as it gets.
-
-### Step 3: Install a Package Inside the Container
-
-```bash
-# Still inside the container
-apk add curl
-curl -s http://example.com | head -3
 exit
 ```
 
-After exiting, the container is gone (because of `--rm`). The curl package you installed is gone too. This is the ephemeral nature of containers.
+Only two processes: your shell (PID 1) and `ps` itself. After exiting, the container is gone (because of `--rm`) along with anything you installed. This is the ephemeral nature of containers.
 
 ---
 
@@ -266,36 +237,23 @@ docker rm -f db
 
 ## Part 4: Run a Python Container (Ubuntu)
 
-### Step 1: Run Python Interactively
+### Step 1: Run a Python One-Liner
 
 ```bash
-docker run -it --rm python:3.12-slim python3
+docker run --rm python:3.12-slim python3 -c "
+import sys
+print(f'Python {sys.version}')
+print('Hello from a container!')
+"
 ```
 
-```python
->>> import sys
->>> print(f"Python {sys.version}")
->>> print("Running inside a container!")
->>> exit()
-```
-
-### Step 2: Run a One-Liner
-
-```bash
-docker run --rm python:3.12-slim python3 -c "print('Hello from Python in a container')"
-```
-
-```text
-Hello from Python in a container
-```
-
-### Step 3: Check the Image Size
+### Step 2: Check the Image Size
 
 ```bash
 docker images | grep python
 ```
 
-Notice the size difference between `python:3.12-slim` and what `python:3.12` would be. Slim images strip out compilers, documentation, and other packages you don't need at runtime. We'll explore image optimization further in Week 16.
+Notice the `slim` variant is much smaller than the full `python:3.12` would be. We'll explore image optimization in Week 16.
 
 ---
 
