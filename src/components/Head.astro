@@ -1,0 +1,155 @@
+---
+import type { Props } from '@astrojs/starlight/props';
+import Default from '@astrojs/starlight/components/Head.astro';
+---
+
+<Default {...Astro.props}><slot /></Default>
+
+<script is:inline>
+(function () {
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function hashText(text) {
+    // Simple djb2 hash — stable, fast, good enough for checkbox keys
+    var h = 5381;
+    for (var i = 0; i < text.length; i++) {
+      h = ((h << 5) + h + text.charCodeAt(i)) >>> 0;
+    }
+    return h.toString(36);
+  }
+
+  function getPageKey() {
+    return location.pathname.replace(/\/$/, '') || '/';
+  }
+
+  function storageKey(checkboxHash) {
+    return 'progress:' + getPageKey() + ':' + checkboxHash;
+  }
+
+  // ── Checkbox persistence ────────────────────────────────────────────────
+  function initCheckboxes() {
+    var checkboxes = document.querySelectorAll(
+      '.sl-markdown-content input[type="checkbox"]'
+    );
+    if (!checkboxes.length) return;
+
+    checkboxes.forEach(function (cb) {
+      // Make checkboxes interactive (Starlight renders them disabled)
+      cb.removeAttribute('disabled');
+      cb.style.cursor = 'pointer';
+
+      // Build a stable key from the checkbox's label text
+      var label = cb.parentElement ? cb.parentElement.textContent.trim() : '';
+      var key = storageKey(hashText(label));
+
+      // Restore state
+      var saved = localStorage.getItem(key);
+      if (saved === 'true') {
+        cb.checked = true;
+      } else if (saved === 'false') {
+        cb.checked = false;
+      }
+
+      // Save on change
+      cb.addEventListener('change', function () {
+        localStorage.setItem(key, cb.checked ? 'true' : 'false');
+        updateProgress();
+      });
+    });
+
+    updateProgress();
+  }
+
+  // ── Progress indicator ──────────────────────────────────────────────────
+  function updateProgress() {
+    var checkboxes = document.querySelectorAll(
+      '.sl-markdown-content input[type="checkbox"]'
+    );
+    if (!checkboxes.length) return;
+
+    var total = checkboxes.length;
+    var checked = 0;
+    checkboxes.forEach(function (cb) {
+      if (cb.checked) checked++;
+    });
+
+    var bar = document.getElementById('progress-indicator');
+    if (!bar) {
+      // Create the progress indicator
+      bar = document.createElement('div');
+      bar.id = 'progress-indicator';
+      bar.setAttribute('role', 'status');
+      bar.setAttribute('aria-live', 'polite');
+
+      var content = document.querySelector('.sl-markdown-content');
+      if (content) {
+        content.insertBefore(bar, content.firstChild);
+      }
+    }
+
+    var pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+    bar.innerHTML =
+      '<div class="progress-text">' +
+      checked + ' of ' + total + ' items completed' +
+      '</div>' +
+      '<div class="progress-bar-track">' +
+      '<div class="progress-bar-fill" style="width:' + pct + '%"></div>' +
+      '</div>';
+  }
+
+  // ── Sidebar badges (per-week completion) ────────────────────────────────
+  function updateSidebarBadges() {
+    var weekGroups = document.querySelectorAll('nav.sidebar details');
+    weekGroups.forEach(function (group) {
+      var links = group.querySelectorAll('a[href]');
+      var totalItems = 0;
+      var checkedItems = 0;
+
+      links.forEach(function (link) {
+        var pagePath = new URL(link.href, location.origin).pathname.replace(/\/$/, '') || '/';
+        // Scan localStorage for this page's progress keys
+        for (var i = 0; i < localStorage.length; i++) {
+          var key = localStorage.key(i);
+          if (key && key.startsWith('progress:' + pagePath + ':')) {
+            totalItems++;
+            if (localStorage.getItem(key) === 'true') {
+              checkedItems++;
+            }
+          }
+        }
+      });
+
+      if (totalItems > 0) {
+        var summary = group.querySelector('summary');
+        if (summary) {
+          var badge = summary.querySelector('.week-badge');
+          if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'week-badge';
+            summary.appendChild(badge);
+          }
+          badge.textContent = checkedItems + '/' + totalItems;
+          if (checkedItems === totalItems) {
+            badge.classList.add('complete');
+          } else {
+            badge.classList.remove('complete');
+          }
+        }
+      }
+    });
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────────
+  function init() {
+    initCheckboxes();
+    updateSidebarBadges();
+  }
+
+  // Run on initial load and on Astro page transitions (View Transitions)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  document.addEventListener('astro:after-swap', init);
+})();
+</script>

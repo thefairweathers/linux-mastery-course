@@ -1,0 +1,112 @@
+/* ── Layout: wider content area for tables and code ──────────────────────── */
+:root {
+  --sl-content-width: 55rem;
+}
+
+/* ── Terminal/Linux aesthetic accent ─────────────────────────────────────── */
+:root {
+  --sl-color-accent-low: #1a2332;
+  --sl-color-accent: #4ec9b0;
+  --sl-color-accent-high: #b8e6d8;
+}
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d4f0e8;
+  --sl-color-accent: #0d7a5f;
+  --sl-color-accent-high: #0a4a3a;
+}
+
+/* ── Monospace font for code and ASCII art ────────────────────────────────── */
+:root {
+  --sl-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace,
+    'SFMono-Regular', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+/* ── Interactive checklists ──────────────────────────────────────────────── */
+.sl-markdown-content li:has(> input[type='checkbox']) {
+  list-style: none;
+  margin-left: -1.25em;
+}
+
+.sl-markdown-content input[type='checkbox'] {
+  cursor: pointer;
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.5em;
+  accent-color: var(--sl-color-accent);
+  vertical-align: middle;
+}
+
+.sl-markdown-content input[type='checkbox']:hover {
+  transform: scale(1.15);
+}
+
+.sl-markdown-content li:has(> input[type='checkbox']:checked) {
+  opacity: 0.7;
+  text-decoration: line-through;
+  text-decoration-color: var(--sl-color-gray-4);
+}
+
+/* ── Progress indicator ──────────────────────────────────────────────────── */
+#progress-indicator {
+  background: var(--sl-color-gray-6);
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.progress-text {
+  font-size: 0.875rem;
+  color: var(--sl-color-gray-2);
+  margin-bottom: 0.375rem;
+}
+
+.progress-bar-track {
+  height: 0.5rem;
+  background: var(--sl-color-gray-5);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--sl-color-accent);
+  border-radius: 0.25rem;
+  transition: width 0.3s ease;
+}
+
+/* ── Sidebar week badges ─────────────────────────────────────────────────── */
+.week-badge {
+  font-size: 0.7rem;
+  padding: 0.1em 0.4em;
+  border-radius: 0.25rem;
+  background: var(--sl-color-gray-5);
+  color: var(--sl-color-gray-2);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.week-badge.complete {
+  background: var(--sl-color-accent);
+  color: var(--sl-color-accent-low);
+}
+
+nav.sidebar details summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+/* ── Tables: responsive horizontal scroll ────────────────────────────────── */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* ── Code blocks: ensure ASCII art preserves spacing ─────────────────────── */
+.sl-markdown-content pre code {
+  font-family: var(--sl-font-mono);
+  tab-size: 4;
+}
